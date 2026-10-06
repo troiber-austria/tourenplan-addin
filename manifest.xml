@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
+  <Id>6f0c2a3e-8d41-4b7e-9a52-3c1d7e5b9a10</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Pier Seven Foods</ProviderName>
+  <DefaultLocale>de-AT</DefaultLocale>
+  <DisplayName DefaultValue="Tourenplan-Karte"/>
+  <Description DefaultValue="Zeigt die geplanten Touren auf der Karte mit LKW-Route, Kilometern und Live-Fahrzeit."/>
+  <IconUrl DefaultValue="https://troiber-austria.github.io/tourenplan-addin/icons/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://troiber-austria.github.io/tourenplan-addin/icons/icon-80.png"/>
+  <SupportUrl DefaultValue="https://troiber-austria.github.io/tourenplan-addin/index.html"/>
+  <AppDomains>
+    <AppDomain>https://api.openrouteservice.org</AppDomain>
+    <AppDomain>https://routes.googleapis.com</AppDomain>
+    <AppDomain>https://maps.googleapis.com</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://troiber-austria.github.io/tourenplan-addin/index.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Desc"/>
+            <LearnMoreUrl resid="Url.Support"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="TourenGruppe">
+                <Label resid="Gruppe.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16"/>
+                  <bt:Image size="32" resid="Icon.32"/>
+                  <bt:Image size="80" resid="Icon.80"/>
+                </Icon>
+                <Control xsi:type="Button" id="KarteOeffnen">
+                  <Label resid="Button.Label"/>
+                  <Supertip>
+                    <Title resid="Button.Label"/>
+                    <Description resid="Button.Tip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16"/>
+                    <bt:Image size="32" resid="Icon.32"/>
+                    <bt:Image size="80" resid="Icon.80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>TourenKarte</TaskpaneId>
+                    <SourceLocation resid="Url.Pane"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://troiber-austria.github.io/tourenplan-addin/icons/icon-16.png"/>
+        <bt:Image id="Icon.32" DefaultValue="https://troiber-austria.github.io/tourenplan-addin/icons/icon-32.png"/>
+        <bt:Image id="Icon.80" DefaultValue="https://troiber-austria.github.io/tourenplan-addin/icons/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Url.Pane" DefaultValue="https://troiber-austria.github.io/tourenplan-addin/index.html"/>
+        <bt:Url id="Url.Support" DefaultValue="https://troiber-austria.github.io/tourenplan-addin/index.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Tourenplan-Karte"/>
+        <bt:String id="Gruppe.Label" DefaultValue="Tourenplan"/>
+        <bt:String id="Button.Label" DefaultValue="Karte"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Desc" DefaultValue="Touren auf der Karte mit LKW-Route und Live-Fahrzeit."/>
+        <bt:String id="Button.Tip" DefaultValue="Öffnet die Tourenplan-Karte rechts neben der Tabelle."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

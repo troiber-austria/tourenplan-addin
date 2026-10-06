@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<title>Tourenplan-Karte</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+</head>
+<body>
+<header class="kopf">
+  <h1>Tourenplan-Karte</h1>
+  <div class="kopf-knoepfe">
+    <button id="btnNeu" class="icon" title="Daten aus Tabelle1 neu einlesen">&#8635;</button>
+    <button id="btnEinst" class="icon" title="Einstellungen">&#9881;</button>
+  </div>
+</header>
+
+<section id="einstellungen" class="box" hidden>
+  <h2>Einstellungen</h2>
+  <p class="klein">Die Schlüssel bleiben nur auf diesem PC (Browser-Speicher des Add-ins) und stehen nicht im Code.</p>
+  <label>OpenRouteService-Schlüssel (LKW-Route, Adress-Suche)
+    <input id="keyOrs" type="password" autocomplete="off" spellcheck="false"></label>
+  <label>Google-Schlüssel (Karte und Live-Verkehrszeit)
+    <input id="keyGoogle" type="password" autocomplete="off" spellcheck="false"></label>
+  <label>Depot-Adresse
+    <input id="depotAdresse" type="text"></label>
+  <div class="zeile">
+    <button id="btnSpeichern" class="primaer">Speichern &amp; testen</button>
+    <button id="btnCacheLeeren" class="sek" title="Gemerkte Adress-Koordinaten verwerfen">Adress-Merkliste leeren</button>
+  </div>
+  <div id="einstStatus" class="klein"></div>
+</section>
+
+<section class="box steuerung">
+  <label>Fahrer / Tour
+    <select id="fahrer"></select></label>
+  <div class="zeile drei">
+    <label>Abfahrt am <input id="datum" type="date"></label>
+    <label>um <input id="zeit" type="time"></label>
+    <label>Standzeit (min) <input id="standzeit" type="number" min="0" max="240" step="5"></label>
+  </div>
+  <div class="zeile">
+    <button id="btnBerechnen" class="primaer">Route berechnen</button>
+    <button id="btnOptimieren" class="sek" title="Beste Reihenfolge für den LKW vorschlagen">Optimieren</button>
+    <button id="btnAlle" class="sek" title="Alle Fahrer nacheinander berechnen">Alle Fahrer</button>
+  </div>
+  <div id="status" class="status" role="status"></div>
+</section>
+
+<div id="karte" class="karte"><div class="karte-leer">Die Karte erscheint, sobald ein Google-Schlüssel hinterlegt ist.</div></div>
+
+<section id="vorschlag" class="box" hidden></section>
+<section id="ergebnis" class="box" hidden></section>
+<section id="uebersicht" class="box" hidden></section>
+
+<script src="config.js"></script>
+<script src="lib.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
