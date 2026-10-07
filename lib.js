@@ -28,6 +28,24 @@
     return { country: 'AT', zip: s.replace(/\D/g, '') };
   }
 
+  // Entfernt Zusaetze wie "Cineplex Donau Plex TOP 601A", "Tuer 604", "; Donauzentrum", "/7-12", Hausnummern-Bereiche.
+  // "Wagramer Straße 79 Tür 604" -> "Wagramer Straße 79" ; "Mariahilferstrasse 42-48" -> "Mariahilferstrasse 42"
+  function cleanStrasse(str) {
+    var s = String(str == null ? '' : str).trim().split(/[;,]/)[0].trim();
+    var m = /^(.*?[^\d\s])\s*(\d+[a-zA-Z]?)(?![a-zA-Z])/.exec(s);
+    return m ? (m[1].trim() + ' ' + m[2]) : s;
+  }
+  function nurStrasse(str) {
+    var s = cleanStrasse(str);
+    return s.replace(/\s*\d+[a-zA-Z]?$/, '').trim() || s;
+  }
+  // Suchvarianten: Original, bereinigt, nur Strasse (ohne Duplikate)
+  function addressVariants(str) {
+    var out = [], o = String(str == null ? '' : str).trim();
+    [o, cleanStrasse(o), nurStrasse(o)].forEach(function (v) { if (v && out.indexOf(v) < 0) out.push(v); });
+    return out;
+  }
+
   function norm(s) { return String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase(); }
 
   function addressKey(strasse, plz, ort) {
@@ -62,12 +80,13 @@
       var kfz = String(row[col['kfz']] == null ? '' : row[col['kfz']]).trim();
       if (kfz) t.kfzZaehler[kfz] = (t.kfzZaehler[kfz] || 0) + 1;
       var key = String(row[col['kd-nr.']]).trim() + '#' + addressKey(strasse, row[col['plz']], row[col['ort']]);
+      var cleanKey = addressKey(cleanStrasse(strasse), row[col['plz']], row[col['ort']]);
       var st = t.index[key];
       var reihung = row[col['reihung final']];
       reihung = (reihung === '' || reihung == null) ? 1e6 : num(reihung);
       if (!st) {
         st = t.index[key] = {
-          key: key, addrKey: addressKey(strasse, row[col['plz']], row[col['ort']]),
+          key: key, addrKey: cleanKey,
           kdnr: row[col['kd-nr.']], name: String(row[col['kunde']] == null ? '' : row[col['kunde']]).trim(),
           strasse: strasse, plz: row[col['plz']], ort: String(row[col['ort']] == null ? '' : row[col['ort']]).trim(),
           reihung: reihung, gew: 0, zeilen: [], erst: bodyIdx
@@ -139,7 +158,7 @@
 
   var api = {
     decodePolyline: decodePolyline, parsePlz: parsePlz, addressKey: addressKey, addressText: addressText,
-    groupTours: groupTours, chunkPoints: chunkPoints, parseGoogleDuration: parseGoogleDuration,
+    cleanStrasse: cleanStrasse, addressVariants: addressVariants, groupTours: groupTours, chunkPoints: chunkPoints, parseGoogleDuration: parseGoogleDuration,
     fmtDur: fmtDur, fmtKm: fmtKm, fmtClock: fmtClock, orderFromOptimization: orderFromOptimization,
     orsOptions: orsOptions, num: num
   };

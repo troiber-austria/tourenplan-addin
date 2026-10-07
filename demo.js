@@ -38,9 +38,9 @@
       opts = opts || {};
       if (url.indexOf('/geocode/search/structured') > -1) {
         var a = new URL(url).searchParams.get('address'); var c = ORTE[a];
-        return resp({ features: c ? [{ geometry: { coordinates: [c[1], c[0]] }, properties: { confidence: 1, label: a } }] : [] });
+        return resp({ features: c ? [{ geometry: { coordinates: [c[1], c[0]] }, properties: { confidence: 1, label: a, layer: 'address' } }] : [] });
       }
-      if (url.indexOf('/geocode/search') > -1) return resp({ features: [{ geometry: { coordinates: [DEPOT[1], DEPOT[0]] }, properties: { label: 'Depot (Demo)' } }] });
+      if (url.indexOf('/geocode/search') > -1) return resp({ features: [{ geometry: { coordinates: [DEPOT[1], DEPOT[0]] }, properties: { label: 'Depot (Demo)', layer: 'address' } }] });
       if (url.indexOf('/v2/directions/') > -1) {
         var co = JSON.parse(opts.body).coordinates.map(function (p) { return [p[1], p[0]]; }), segs = [], d = 0, t = 0;
         for (var i = 1; i < co.length; i++) { var m = hav(co[i - 1], co[i]) * 1.3; segs.push({ distance: m, duration: m / 12 }); d += m; t += m / 12; }

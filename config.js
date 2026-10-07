@@ -2,7 +2,7 @@
    sondern im Add-in unter "Einstellungen" eingegeben (bleiben nur auf dem jeweiligen PC). */
 window.TP_CONFIG = {
   depot: {
-    name: 'Pier Seven Foods',
+    name: 'Troiber',
     adresse: 'Industriestraße 383, 2722 Weikersdorf am Steinfelde, Österreich',
     // Optional fest hinterlegen, sonst wird die Adresse beim ersten Start geocodiert und gemerkt:
     lat: null, lon: null
@@ -17,6 +17,7 @@ window.TP_CONFIG = {
     '18-Tonner':  { vehicle_type: 'hgv' },
     '3,5-Tonner': { vehicle_type: 'delivery' }
   },
+  snapRadius: 1500,             // Meter: so weit darf eine Adresse zur nächsten befahrbaren Straße entfernt liegen
   ors: 'https://api.openrouteservice.org',
   googleRoutes: 'https://routes.googleapis.com/directions/v2:computeRoutes'
 };

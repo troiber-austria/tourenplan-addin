@@ -6,7 +6,7 @@
            xsi:type="ContentApp">
   <Id>b2f7d9c4-15a8-4e63-8c0b-7a9e4d2f6c31</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Pier Seven Foods</ProviderName>
+  <ProviderName>Troiber</ProviderName>
   <DefaultLocale>de-AT</DefaultLocale>
   <DisplayName DefaultValue="Tourenplan-Karte (im Blatt)"/>
   <Description DefaultValue="Karte mit LKW-Route und Live-Fahrzeit, fest im Tabellenblatt verankert."/>

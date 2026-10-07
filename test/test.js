@@ -36,6 +36,9 @@ assert.strictEqual(max.kfz, 'WB 764EW'); assert.strictEqual(max.zeilen, 4);
 assert.deepStrictEqual(T.groupTours(['a'], []).fehlend.length > 0, true);
 assert.deepStrictEqual(T.orsOptions({ typ: '18-Tonner', gewicht: 18, hoehe: 4, breite: 2.55, laenge: 12 }, TP_CONFIG),
   { vehicle_type: 'hgv', profile_params: { restrictions: { weight: 18, height: 4, width: 2.55, length: 12 } } });
+assert.deepStrictEqual(T.addressVariants('Wagramer Straße 79 Tür 604'), ['Wagramer Straße 79 Tür 604', 'Wagramer Straße 79', 'Wagramer Straße']);
+assert.strictEqual(T.cleanStrasse('Wagramer Straße 94; Donauzentrum'), 'Wagramer Straße 94');
+assert.strictEqual(T.cleanStrasse('Mariahilferstrasse 42-48'), 'Mariahilferstrasse 42');
 console.log('lib ok');
 
 // --- engine mit gefaelschtem Netzwerk ---
@@ -46,10 +49,10 @@ console.log('lib ok');
     const ok = (b) => ({ ok: true, status: 200, json: async () => b });
     if (url.includes('/geocode/search/structured')) {
       const u = new URL(url); const n = Number(u.searchParams.get('address').replace(/\D/g, ''));
-      if (n === 9) return ok({ features: [] });
-      return ok({ features: [{ geometry: { coordinates: [16 + n / 100, 48 + n / 100] }, properties: { confidence: n === 3 ? 0.4 : 1, label: 'x' } }] });
+      if (n === 9 || n === 0) return ok({ features: [] });
+      return ok({ features: [{ geometry: { coordinates: [16 + n / 100, 48 + n / 100] }, properties: { confidence: n === 3 ? 0.4 : 1, label: 'x', layer: 'address' } }] });
     }
-    if (url.includes('/geocode/search') && url.includes('Industrie')) return ok({ features: [{ geometry: { coordinates: [16.2, 47.85] }, properties: { label: 'Depot' } }] });
+    if (url.includes('/geocode/search') && url.includes('Industrie')) return ok({ features: [{ geometry: { coordinates: [16.2, 47.85] }, properties: { label: 'Depot', layer: 'address' } }] });
     if (url.includes('/geocode/search')) return ok({ features: [] });
     if (url.includes('/v2/directions/driving-hgv')) {
       const b = JSON.parse(opts.body); const n = b.coordinates.length;
@@ -76,6 +79,10 @@ console.log('lib ok');
   const fehler = await eng.geocodeStops(stops);
   assert.strictEqual(fehler.length, 1); assert.strictEqual(fehler[0].name, 'Z');
   assert.strictEqual(stops.find(s => s.name === 'C').weak, true);
+  const bad = createEngine({ cfg: Object.assign({}, TP_CONFIG, { geocodeWartezeitMs: 0 }), sleep: async () => {}, getKeys: () => ({ ors: 'K' }),
+    cache: { get: () => undefined, put() {}, flush: async () => {} },
+    fetch: async () => ({ ok: true, status: 200, json: async () => ({ features: [{ geometry: { coordinates: [13.33333, 47.33333] }, properties: { layer: 'country', label: 'Austria', confidence: 1 } }] }) }) });
+  assert.strictEqual(await bad.geocodeAddress('Nirgendwo 1', 'AT-9999', 'Ort'), null);
   const nCalls = calls.length; await eng.geocodeStops(max.stops);   // jetzt aus dem Cache
   assert.strictEqual(calls.length, nCalls);
   const fz = { typ: '18-Tonner', gewicht: 18, hoehe: 4, breite: 2.55, laenge: 12 };

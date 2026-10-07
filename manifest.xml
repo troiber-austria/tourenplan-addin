@@ -6,7 +6,7 @@
            xsi:type="TaskPaneApp">
   <Id>6f0c2a3e-8d41-4b7e-9a52-3c1d7e5b9a10</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Pier Seven Foods</ProviderName>
+  <ProviderName>Troiber</ProviderName>
   <DefaultLocale>de-AT</DefaultLocale>
   <DisplayName DefaultValue="Tourenplan-Karte"/>
   <Description DefaultValue="Zeigt die geplanten Touren auf der Karte mit LKW-Route, Kilometern und Live-Fahrzeit."/>

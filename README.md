@@ -54,6 +54,14 @@ Die Schlüssel stehen **nicht** im Code. Sie werden im Add-in unter ⚙ *Einstel
 3. *Optimieren* zeigt die bisherige (grau gestrichelt) gegen die vorgeschlagene Route (orange); *Reihenfolge in Tabelle übernehmen* schreibt die neue Nummerierung in „Reihung final“.
 4. *Alle Fahrer* rechnet alle Touren nacheinander und zeigt eine Tagesübersicht.
 
+## Karte im eigenen Fenster (zweiter Monitor)
+
+Standardmäßig öffnet *Route berechnen* ein **eigenes Kartenfenster** (ca. 88 % des Bildschirms) mit Karte und Tourdaten. Es bleibt offen und wird bei jeder weiteren Berechnung aktualisiert; ziehe es auf den zweiten Monitor. Schließt du es, erscheint die Karte wieder im Seitenbereich. Im Seitenbereich lässt sich das über das Häkchen „Karte in eigenem Fenster“ ausschalten.
+
+## Adressen mit Zusätzen
+
+Vor der Suche werden Zusätze entfernt (z. B. „Tür 604“, „TOP 601A“, „Cineplex …“, „; Donauzentrum“, „/7-12“, Hausnummern-Bereiche „42-48“ → „42“). Reicht der Treffer nicht, wird nur die Straße gesucht und der Kunde mit ⚠ markiert. Die Tabelle selbst bleibt unverändert.
+
 ## Wichtige Hinweise
 
 * **Fahrzeugdaten:** Die Maße im Blatt „Fahrzeuge“ sind Schätzwerte (gelb) – bitte mit den Zulassungsscheinen abgleichen. Sie steuern die LKW-Beschränkungen (Gewicht, Höhe, Breite, Länge) der Route.
@@ -66,7 +74,7 @@ Die Schlüssel stehen **nicht** im Code. Sie werden im Add-in unter ⚙ *Einstel
 
 ## Dateien
 
-`index.html`, `style.css` – Oberfläche · `app.js` – Excel-Anbindung, Karte · `engine.js` – Berechnungsablauf · `lib.js` – Hilfsfunktionen · `config.js` – Einstellungen (Depot, Fahrzeugtypen) · `demo.js` – Demo-Modus · `manifest.xml` – Aufgabenbereich · `manifest-inhalt.xml` – optional im Blatt · `test/test.js` – automatische Tests (`node test/test.js`)
+`index.html`, `style.css` – Oberfläche · `karte.html`, `mapview.js` – Kartenfenster und Karten-Darstellung · `app.js` – Excel-Anbindung, Karte · `engine.js` – Berechnungsablauf · `lib.js` – Hilfsfunktionen · `config.js` – Einstellungen (Depot, Fahrzeugtypen) · `demo.js` – Demo-Modus · `manifest.xml` – Aufgabenbereich · `manifest-inhalt.xml` – optional im Blatt · `test/test.js` – automatische Tests (`node test/test.js`)
 
 ## Fehlersuche
 

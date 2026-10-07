@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tourenplan-Karte</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { height: 100%; margin: 0; padding: 0; }
+  body { display: grid; grid-template-columns: minmax(340px, 30%) 1fr; height: 100vh; overflow: hidden; }
+  #seite { overflow-y: auto; padding: 8px 12px 20px; border-right: 1px solid var(--line); }
+  #karteGross { height: 100vh; border: 0; border-radius: 0; margin: 0; }
+  #seite button, #seite .zeile { display: none; }
+  #seite .box { margin: 8px 0; }
+  @media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: 1fr 40vh; } #karteGross { height: auto; } #seite { order: 2; border-right: 0; } }
+</style>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+</head>
+<body>
+<div id="seite"><h1>Tourenplan-Karte</h1><p class="klein">Warte auf Daten aus Excel ...</p></div>
+<div id="karteGross" class="karte"><div class="karte-leer">Die Karte erscheint, sobald eine Route berechnet wurde.</div></div>
+<script src="lib.js"></script>
+<script src="mapview.js"></script>
+<script>
+(function () {
+  var key = '';
+  var mv = window.TP.MapView.create(document.getElementById('karteGross'), function () { return key; });
+  function empfangen(arg) {
+    var d; try { d = JSON.parse(arg.message); } catch (e) { return; }
+    if (d.googleKey && d.googleKey !== key) { key = d.googleKey; mv.reset(); }
+    if (d.titel) document.title = d.titel;
+    document.getElementById('seite').innerHTML = d.html || '';
+    mv.draw(d.layers || []).then(function (ok) {
+      if (!ok) document.getElementById('karteGross').innerHTML = '<div class="karte-leer">Karte nicht verfügbar - Google-Schlüssel prüfen.</div>';
+    });
+  }
+  Office.onReady(function () {
+    Office.context.ui.addHandlerAsync(Office.EventType.DialogParentMessageReceived, empfangen, function () {
+      Office.context.ui.messageParent('bereit');
+    });
+  });
+})();
+</script>
+</body>
+</html>

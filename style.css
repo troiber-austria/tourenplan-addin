@@ -50,3 +50,6 @@ tr.klick:hover { background: var(--bg); }
   .karte { grid-column: 2; grid-row: 1 / span 6; height: calc(100vh - 24px); position: sticky; top: 8px; }
   #vorschlag, #ergebnis, #uebersicht { grid-column: 1 / -1; }
 }
+
+label.chk { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
+label.chk input { display: inline-block; width: auto; margin: 0; }

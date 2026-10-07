@@ -35,23 +35,43 @@
     }
 
     // ---------- Geocoding ----------
+    // Trefferebene: Hausnummer/Betrieb = genau, Straße = ok (unsicher), Ort/PLZ = grob (unsicher),
+    // alles darüber (Land, Bundesland, Bezirk ...) wird verworfen - sonst landet ein Kunde z. B. in der Landesmitte.
+    var RANG = { address: 3, venue: 3, street: 2, postalcode: 1, locality: 1, localadmin: 1, borough: 1, neighbourhood: 1 };
+    function besterTreffer(body) {
+      var best = null;
+      ((body && body.features) || []).forEach(function (f) {
+        var pr = f.properties || {}, r = RANG[pr.layer] || 0;
+        if (r && (!best || r > best.r)) best = { f: f, r: r };
+      });
+      if (!best) return null;
+      var pr2 = best.f.properties || {};
+      return {
+        lat: best.f.geometry.coordinates[1], lon: best.f.geometry.coordinates[0],
+        weak: best.r < 3 || (pr2.confidence != null && pr2.confidence < 0.6),
+        label: pr2.label || '', layer: pr2.layer || ''
+      };
+    }
+
     async function geocodeAddress(strasse, plz, ort) {
-      var p = T.parsePlz(plz);
-      var h = orsHeaders();
-      var u = cfg.ors + '/geocode/search/structured?address=' + encodeURIComponent(strasse) +
-        '&postalcode=' + encodeURIComponent(p.zip) + '&locality=' + encodeURIComponent(ort) +
-        '&country=' + encodeURIComponent(p.country) + '&size=1';
-      var body = await jfetch(u, { headers: h }, 'Geocoding');
-      if (!body.features || !body.features.length) {
-        u = cfg.ors + '/geocode/search?text=' + encodeURIComponent(T.addressText(strasse, plz, ort)) +
-          '&boundary.country=' + encodeURIComponent(p.country) + '&size=1';
-        body = await jfetch(u, { headers: h }, 'Geocoding');
+      var p = T.parsePlz(plz), h = orsHeaders(), best = null, n = 0;
+      var besser = function (t) { if (t && (!best || (t.weak ? 0 : 1) > (best.weak ? 0 : 1) || (t.weak === best.weak && RANG[t.layer] > RANG[best.layer]))) best = t; return best && !best.weak; };
+      var varianten = T.addressVariants(strasse);
+      for (var i = 0; i < varianten.length && n < 4; i++) {
+        if (i > 0 && best && i === varianten.length - 1 && varianten.length > 2) break;   // "nur Straße" nur, wenn sonst nichts gefunden wurde
+        var u = cfg.ors + '/geocode/search/structured?address=' + encodeURIComponent(varianten[i]) +
+          '&postalcode=' + encodeURIComponent(p.zip) + '&locality=' + encodeURIComponent(ort) +
+          '&country=' + encodeURIComponent(p.country) + '&size=5';
+        n++;
+        if (besser(besterTreffer(await jfetch(u, { headers: h }, 'Geocoding')))) return best;
+        if (i === 0 || (varianten.length === 1)) {          // zusaetzlich Freitext mit der bereinigten Adresse
+          u = cfg.ors + '/geocode/search?text=' + encodeURIComponent(T.addressText(T.cleanStrasse(strasse), plz, ort)) +
+            '&boundary.country=' + encodeURIComponent(p.country) + '&size=5';
+          n++;
+          if (besser(besterTreffer(await jfetch(u, { headers: h }, 'Geocoding')))) return best;
+        }
       }
-      var f = body.features && body.features[0];
-      if (!f) return null;
-      var pr = f.properties || {};
-      var weak = (pr.confidence != null && pr.confidence < 0.6) || pr.accuracy === 'centroid' || pr.match_type === 'fallback';
-      return { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], weak: !!weak, label: pr.label || '' };
+      return best;
     }
 
     async function geocodeStops(stops, onProgress) {
@@ -67,7 +87,7 @@
           if (c) cache.put(s.addrKey, c);
           await sleep(cfg.geocodeWartezeitMs == null ? 700 : cfg.geocodeWartezeitMs);
         }
-        if (c) { s.lat = c.lat; s.lon = c.lon; s.weak = !!c.weak; s.geoLabel = c.label; }
+        if (c) { s.lat = c.lat; s.lon = c.lon; s.weak = !!c.weak; s.geoLabel = c.label; s.geoEbene = c.layer; }
         else { fehler.push(s); }
         if (onProgress) onProgress(i + 1, stops.length);
       }
@@ -94,12 +114,18 @@
     async function orsRoute(points, fz) {   // points: [[lat,lon],...]
       var legs = [], path = [], dist = 0, dur = 0;
       var chunks = T.chunkPoints(points, 50);
+      var chunkStart = 0;
       for (var c = 0; c < chunks.length; c++) {
+        if (c) chunkStart += chunks[c - 1].length - 1;
         var coords = chunks[c].map(function (p) { return [p[1], p[0]]; });
         var body = await jfetch(cfg.ors + '/v2/directions/driving-hgv', {
           method: 'POST', headers: orsHeaders(),
-          body: JSON.stringify({ coordinates: coords, instructions: false, preference: 'recommended', options: T.orsOptions(fz, cfg) })
-        }, 'LKW-Route');
+          body: JSON.stringify({ coordinates: coords, radiuses: coords.map(function () { return cfg.snapRadius || 1500; }), instructions: false, preference: 'recommended', options: T.orsOptions(fz, cfg) })
+        }, 'LKW-Route').catch(function (e) {
+          var m = /coordinate (\d+)/.exec(e.message);
+          if (m) e.coordIndex = chunkStart + Number(m[1]);      // Nummerierung der ORS-Meldung ist 0-basiert
+          throw e;
+        });
         var r = body.routes && body.routes[0];
         if (!r) throw new Error('LKW-Route: keine Route gefunden.');
         dist += r.summary.distance; dur += r.summary.duration;
@@ -158,7 +184,13 @@
       var res = { tour: tour.name, kfz: tour.kfz, fz: fz, depot: depot, stops: geo, skipped: skipped, ors: null, google: null, warnings: [], serviceSec: opts.serviceSec };
       if (!geo.length) { res.warnings.push('Keine Adresse konnte lokalisiert werden.'); return res; }
       var pts = [[depot.lat, depot.lon]].concat(geo.map(function (s) { return [s.lat, s.lon]; }), [[depot.lat, depot.lon]]);
-      res.ors = await orsRoute(pts, fz);
+      try { res.ors = await orsRoute(pts, fz); }
+      catch (e) {
+        var st = e.coordIndex != null && geo[e.coordIndex - 1];
+        if (st) throw new Error('Kunde "' + st.name + '" (' + st.strasse + ', ' + st.ort + '): für den LKW ist keine Straße in der Nähe der gefundenen Position ' +
+          (st.weak ? '(Adresse nur ungefähr gefunden) ' : '') + 'erreichbar. Bitte die Adresse in der Tabelle prüfen. [' + e.message + ']');
+        throw e;
+      }
       if (keys().google) {
         try { res.google = await googleTimes(pts, opts.start, opts.serviceSec); }
         catch (e) { res.warnings.push(e.message); }

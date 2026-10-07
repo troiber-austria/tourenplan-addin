@@ -62,7 +62,13 @@
         var ur = ws.getUsedRangeOrNullObject(true); ur.load('values,isNullObject'); await ctx.sync();
         var out = {};
         if (!ur.isNullObject) ur.values.slice(1).forEach(function (r) {
-          if (r[0] !== '' && r[1] !== '' && r[2] !== '') out[String(r[0])] = { lat: Number(r[1]), lon: Number(r[2]), weak: r[3] === 1 || r[3] === '1', label: String(r[4] || '') };
+          if (r[0] === '' || r[1] === '' || r[2] === '') return;
+          var lat = Number(r[1]), lon = Number(r[2]), label = String(r[4] || ''), ebene = String(r[5] || '');
+          // alte Fehltreffer (Land/Landesmitte) nicht mehr verwenden
+          var grob = ['country', 'macroregion', 'region', 'macrocounty', 'county'].indexOf(ebene) > -1 ||
+            /^(austria|österreich|germany|deutschland)$/i.test(label.trim()) ||
+            (Math.abs(lat - 47.3333) < 0.01 && Math.abs(lon - 13.3333) < 0.01);
+          if (!grob) out[String(r[0])] = { lat: lat, lon: lon, weak: r[3] === 1 || r[3] === '1', label: label, layer: ebene };
         });
         return out;
       });
@@ -75,14 +81,14 @@
         var start = 1;
         if (ws.isNullObject) {
           ws = ctx.workbook.worksheets.add(cfg.cacheBlatt);
-          ws.getRange('A1:E1').values = [['Adresse (Schlüssel)', 'Breite', 'Länge', 'unsicher', 'Treffer']];
+          ws.getRange('A1:F1').values = [['Adresse (Schlüssel)', 'Breite', 'Länge', 'unsicher', 'Treffer', 'Ebene']];
           ws.visibility = Excel.SheetVisibility.hidden;
         } else {
           var ur = ws.getUsedRangeOrNullObject(true); ur.load('rowCount,isNullObject'); await ctx.sync();
           start = ur.isNullObject ? 1 : ur.rowCount;
         }
-        var rows = eintraege.map(function (e) { return [e.key, e.v.lat, e.v.lon, e.v.weak ? 1 : 0, e.v.label || '']; });
-        ws.getRangeByIndexes(start, 0, rows.length, 5).values = rows;
+        var rows = eintraege.map(function (e) { return [e.key, e.v.lat, e.v.lon, e.v.weak ? 1 : 0, e.v.label || '', e.v.layer || '']; });
+        ws.getRangeByIndexes(start, 0, rows.length, 6).values = rows;
         await ctx.sync();
       });
     },
@@ -91,7 +97,7 @@
       return Excel.run(async function (ctx) {
         var ws = ctx.workbook.worksheets.getItemOrNullObject(cfg.cacheBlatt);
         ws.load('isNullObject'); await ctx.sync();
-        if (!ws.isNullObject) { ws.getRange('A2:E100000').clear(Excel.ClearApplyTo.contents); await ctx.sync(); }
+        if (!ws.isNullObject) { ws.getRange('A2:F100000').clear(Excel.ClearApplyTo.contents); await ctx.sync(); }
       });
     },
     async zeileZeigen(idx) {
@@ -153,64 +159,75 @@
     cache: cache, getKeys: function () { return S.keys; }
   });
 
-  // ---------- Google Maps ----------
-  var googleGeladen = null;
-  function ladeGoogle() {
-    if (googleGeladen) return googleGeladen;
-    googleGeladen = new Promise(function (resolve, reject) {
-      if (!S.keys.google || S.demo) return reject(new Error('kein Schlüssel'));
-      window.gm_authFailure = function () { $('karte').innerHTML = '<div class="karte-leer">Google lehnt den Schlüssel ab (Einschränkungen/Freigabe der Maps JavaScript API prüfen).</div>'; };
-      window.__gmInit = function () { resolve(); };
-      var s = document.createElement('script');
-      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(S.keys.google) + '&loading=async&v=weekly&language=de&region=AT&callback=__gmInit';
-      s.onerror = function () { reject(new Error('Google Maps konnte nicht geladen werden.')); };
-      document.head.appendChild(s);
-    }).then(async function () {
-      await google.maps.importLibrary('maps'); await google.maps.importLibrary('marker');
+  // ---------- Karte: im Seitenbereich oder im eigenen Fenster ----------
+  var mv = T.MapView.create($('karte'), function () { return S.demo ? '' : S.keys.google; });
+  var Dlg = { d: null, bereit: false, wartend: null };
+
+  function dialogMoeglich() {
+    return !S.demo && window.Office && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function';
+  }
+  function fensterModus() { return dialogMoeglich() && lsGet('tp_fenster') !== '0'; }
+
+  function einfach(l) {      // Schicht in ein schlankes, uebertragbares Objekt umwandeln
+    var res = l.res; if (!res || !res.ors) return null;
+    var g = res.google, last = null, path = [];
+    res.ors.path.forEach(function (p, i) {      // Punkte ausduennen (ca. 20 m), Start und Ende bleiben
+      if (!last || i === res.ors.path.length - 1 || Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) > 0.0002) { path.push(p); last = p; }
     });
-    googleGeladen.catch(function () { googleGeladen = null; });
-    return googleGeladen;
-  }
-  async function karteBereit() {
-    if (S.map) return true;
-    try { await ladeGoogle(); } catch (e) { return false; }
-    $('karte').innerHTML = '';
-    S.map = new google.maps.Map($('karte'), { center: { lat: 48.2, lng: 16.37 }, zoom: 9, mapId: 'DEMO_MAP_ID', mapTypeControl: false, streetViewControl: false, fullscreenControl: false });
-    S.info = new google.maps.InfoWindow();
-    return true;
-  }
-  function loescheKarte() { S.overlays.forEach(function (o) { if (o.setMap) o.setMap(null); else o.map = null; }); S.overlays = []; }
-
-  function marker(pos, glyph, farbe, html) {
-    var pin = new google.maps.marker.PinElement({ glyph: String(glyph), background: farbe, borderColor: farbe, glyphColor: '#ffffff', scale: 0.9 });
-    var m = new google.maps.marker.AdvancedMarkerElement({ map: S.map, position: pos, content: pin.element });
-    m.addListener('click', function () { S.info.setContent(html); S.info.open({ map: S.map, anchor: m }); });
-    S.overlays.push(m);
+    return {
+      farbe: l.farbe, gestrichelt: !!l.gestrichelt, nummern: !!l.nummern,
+      depot: { lat: res.depot.lat, lon: res.depot.lon, name: cfg.depot.name }, path: path,
+      stops: res.stops.map(function (s, i) { return { name: s.name, strasse: s.strasse, ort: s.ort, gew: Math.round(s.gew), lat: s.lat, lon: s.lon, weak: !!s.weak, eta: g ? T.fmtClock(g.eta[i]) : '' }; })
+    };
   }
 
-  // layers: [{res, farbe, gestrichelt, nummern}]
-  async function zeichne(layers) {
-    if (!(await karteBereit())) return;
-    loescheKarte();
-    var b = new google.maps.LatLngBounds(), erstes = true;
-    layers.forEach(function (l) {
-      var res = l.res; if (!res || !res.ors) return;
-      var path = res.ors.path.map(function (p) { return { lat: p[0], lng: p[1] }; });
-      var opts = { path: path, map: S.map, strokeColor: l.farbe, strokeOpacity: l.gestrichelt ? 0 : 0.85, strokeWeight: l.gestrichelt ? 3 : 5 };
-      if (l.gestrichelt) opts.icons = [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 }, offset: '0', repeat: '14px' }];
-      var pl = new google.maps.Polyline(opts); S.overlays.push(pl);
-      path.forEach(function (p) { b.extend(p); });
-      if (erstes) {
-        marker({ lat: res.depot.lat, lng: res.depot.lon }, 'D', '#111827', '<b>' + esc(cfg.depot.name) + '</b><br>Depot (Start/Ziel)');
-        erstes = false;
-      }
-      if (l.nummern) res.stops.forEach(function (s, i) {
-        var eta = res.google ? ' · Ankunft ca. ' + T.fmtClock(res.google.eta[i]) : '';
-        marker({ lat: s.lat, lng: s.lon }, i + 1, l.farbe,
-          '<b>' + (i + 1) + '. ' + esc(s.name) + '</b><br>' + esc(s.strasse) + ', ' + esc(s.ort) + '<br>' + Math.round(s.gew) + ' kg' + eta + (s.weak ? '<br>⚠ Adresse unsicher lokalisiert' : ''));
+  function paneKarteZeigen(an) {
+    $('karte').style.display = an ? '' : 'none';
+    $('karteHinweis').hidden = an;
+  }
+
+  function dialogSenden() {
+    if (Dlg.d && Dlg.bereit && Dlg.wartend) { Dlg.d.messageChild(JSON.stringify(Dlg.wartend)); }
+  }
+
+  // Liefert true, wenn das Kartenfenster die Anzeige uebernommen hat
+  function imFensterZeigen(paket) {
+    return new Promise(function (resolve) {
+      Dlg.wartend = paket;
+      if (Dlg.d) { dialogSenden(); return resolve(true); }
+      var url = location.href.replace(/[?#].*$/, '').replace(/[^\/]*$/, '') + 'karte.html';
+      Office.context.ui.displayDialogAsync(url, { height: 88, width: 88, displayInIframe: false }, function (r) {
+        if (r.status !== Office.AsyncResultStatus.Succeeded) { Dlg.wartend = null; return resolve(false); }
+        Dlg.d = r.value; Dlg.bereit = false;
+        Dlg.d.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+          if (arg.message === 'bereit') { Dlg.bereit = true; dialogSenden(); }
+        });
+        Dlg.d.addEventHandler(Office.EventType.DialogEventReceived, function () {   // Fenster wurde geschlossen
+          Dlg.d = null; Dlg.bereit = false; paneKarteZeigen(true);
+          if (S.letzteLayers) mv.draw(S.letzteLayers);
+        });
+        paneKarteZeigen(false);
+        resolve(true);
       });
     });
-    if (!b.isEmpty()) S.map.fitBounds(b, 40);
+  }
+
+  function dialogSchliessen() {
+    if (Dlg.d) { try { Dlg.d.close(); } catch (e) { /* schon zu */ } Dlg.d = null; Dlg.bereit = false; }
+    paneKarteZeigen(true);
+  }
+
+  // layers: [{res, farbe, gestrichelt, nummern}] ; bereiche: Elemente, deren Text im Kartenfenster links stehen soll
+  async function zeichne(layers, bereiche) { return zeigePlain(layers.map(einfach).filter(Boolean), bereiche); }
+  async function zeigePlain(plain, bereiche) {
+    S.letzteLayers = plain; S.letzteBereiche = bereiche;
+    if (fensterModus()) {
+      var html = (bereiche || ['vorschlag', 'ergebnis']).map(function (id) { var e = $(id); return e && !e.hidden ? e.innerHTML : ''; }).join('');
+      var ok = await imFensterZeigen({ googleKey: S.keys.google, titel: 'Tourenplan-Karte', html: html, layers: plain });
+      if (ok) return;
+    }
+    paneKarteZeigen(true);
+    await mv.draw(plain);
   }
 
   // ---------- Daten laden ----------
@@ -303,7 +320,7 @@
       tr.addEventListener('click', function () { Daten.zeileZeigen(Number(tr.getAttribute('data-idx'))).catch(function () {}); });
     });
     var layers = [{ res: res, farbe: FARBEN[Object.keys(S.tours).sort().indexOf(name) % FARBEN.length], nummern: true }];
-    await zeichne(layersExtra ? layersExtra.concat(layers) : layers);
+    await zeichne(layersExtra ? layersExtra.concat(layers) : layers, ['ergebnis']);
   }
 
   // ---------- Optimieren ----------
@@ -321,7 +338,7 @@
     await zeigeErgebnis(name, null);
     zeigeVorschlag(aktuell, neu);
     var layers = [{ res: aktuell, farbe: '#6b7280', gestrichelt: true, nummern: false }, { res: neu, farbe: '#c2410c', nummern: true }];
-    await zeichne(layers);
+    await zeichne(layers, ['vorschlag', 'ergebnis']);
     status('Vorschlag fertig - grau gestrichelt = bisherige Route, orange = Vorschlag.', 'ok');
   }
 
@@ -400,7 +417,7 @@
       tr.addEventListener('click', function () { var n = tr.getAttribute('data-n'); $('fahrer').value = n; zeigeErgebnis(n); });
     });
     $('btnAlleKarte').addEventListener('click', function () {
-      zeichne(namen.filter(function (n) { return S.results[n] && S.results[n].ors; }).map(function (n, i) { return { res: S.results[n], farbe: FARBEN[namen.indexOf(n) % FARBEN.length], nummern: false }; }));
+      zeichne(namen.filter(function (n) { return S.results[n] && S.results[n].ors; }).map(function (n) { return { res: S.results[n], farbe: FARBEN[namen.indexOf(n) % FARBEN.length], nummern: false }; }), ['uebersicht']);
     });
     status(fehlerGesamt.length ? 'Fertig, aber mit Hinweisen.' : 'Alle Touren berechnet.', fehlerGesamt.length ? 'fehler' : 'ok');
   }
@@ -410,12 +427,12 @@
     var ors = $('keyOrs').value.trim(), g = $('keyGoogle').value.trim(), dep = $('depotAdresse').value.trim();
     lsSet('tp_keys', JSON.stringify({ ors: ors, google: g })); if (dep) lsSet('tp_depot', dep);
     S.keys.ors = ors; S.keys.google = g; if (dep) cfg.depot.adresse = dep;
-    googleGeladen = null; S.map = null;
+    mv.reset();
     var out = $('einstStatus'); out.textContent = 'Teste ...';
     var teile = [];
     try { var d = await engine.getDepot(); teile.push('Depot gefunden (' + d.lat.toFixed(4) + ', ' + d.lon.toFixed(4) + ').'); }
     catch (e) { teile.push('OpenRouteService: ' + e.message); }
-    if (g) { try { await ladeGoogle(); teile.push('Google Maps geladen.'); await karteBereit(); } catch (e) { teile.push('Google: ' + e.message); } }
+    if (g) { try { var okMap = await mv.ensure(); teile.push(okMap ? 'Google Maps geladen.' : 'Google Maps konnte nicht geladen werden (Schlüssel/Freigaben prüfen).'); } catch (e) { teile.push('Google: ' + e.message); } }
     else teile.push('Kein Google-Schlüssel: ohne Karte und Live-Zeit.');
     out.textContent = teile.join(' ');
   }
@@ -442,6 +459,14 @@
     $('btnCacheLeeren').addEventListener('click', async function () {
       try { await Daten.cacheLeeren(); S.geoCache = {}; $('einstStatus').textContent = 'Merkliste geleert.'; } catch (e) { $('einstStatus').textContent = e.message; }
     });
+    var chk = $('chkFenster');
+    chk.checked = fensterModus(); chk.disabled = !dialogMoeglich();
+    if (!dialogMoeglich()) chk.parentNode.hidden = true;
+    chk.addEventListener('change', function () {
+      lsSet('tp_fenster', chk.checked ? '1' : '0');
+      if (chk.checked) { if (S.letzteLayers) zeigePlain(S.letzteLayers, S.letzteBereiche); }
+      else { dialogSchliessen(); if (S.letzteLayers) mv.draw(S.letzteLayers); }
+    });
     $('btnNeu').addEventListener('click', wrap(datenLaden));
     $('btnBerechnen').addEventListener('click', wrap(function () { S.vorschlag = null; $('vorschlag').hidden = true; return berechne($('fahrer').value); }));
     $('btnOptimieren').addEventListener('click', wrap(optimiere));
@@ -455,7 +480,7 @@
     try {
       S.geoCache = await Daten.cacheLesen();
       await datenLaden();
-      if (S.keys.google) await karteBereit();
+      if (S.keys.google && !fensterModus()) await mv.ensure();
     } catch (e) { status(e.message || String(e), 'fehler'); }
     setBusy(false);
     undoAnzeigen();
