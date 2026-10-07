@@ -459,6 +459,20 @@
     $('btnCacheLeeren').addEventListener('click', async function () {
       try { await Daten.cacheLeeren(); S.geoCache = {}; $('einstStatus').textContent = 'Merkliste geleert.'; } catch (e) { $('einstStatus').textContent = e.message; }
     });
+    // Autostart: wird in der Mappe selbst gespeichert (Dokumenteinstellung), gilt dann fuer jeden, der sie oeffnet
+    var auto = $('chkAutostart'), dokSet = null;
+    try { dokSet = (!S.demo && Office.context.document.settings) || null; } catch (e) { dokSet = null; }
+    if (!dokSet) { $('autostartZeile').hidden = true; }
+    else {
+      auto.checked = dokSet.get('Office.AutoShowTaskpaneWithDocument') === true;
+      auto.addEventListener('change', function () {
+        dokSet.set('Office.AutoShowTaskpaneWithDocument', auto.checked);
+        dokSet.saveAsync(function (r) {
+          $('einstStatus').textContent = r.status === Office.AsyncResultStatus.Succeeded
+            ? 'Gespeichert. Bitte die Mappe speichern, damit die Einstellung dauerhaft in der Datei steht.' : 'Konnte nicht gespeichert werden.';
+        });
+      });
+    }
     var chk = $('chkFenster');
     chk.checked = fensterModus(); chk.disabled = !dialogMoeglich();
     if (!dialogMoeglich()) chk.parentNode.hidden = true;

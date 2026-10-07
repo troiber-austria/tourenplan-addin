@@ -54,6 +54,10 @@ Die Schlüssel stehen **nicht** im Code. Sie werden im Add-in unter ⚙ *Einstel
 3. *Optimieren* zeigt die bisherige (grau gestrichelt) gegen die vorgeschlagene Route (orange); *Reihenfolge in Tabelle übernehmen* schreibt die neue Nummerierung in „Reihung final“.
 4. *Alle Fahrer* rechnet alle Touren nacheinander und zeigt eine Tagesübersicht.
 
+## Add-In beim Öffnen der Mappe automatisch starten
+
+⚙ Einstellungen → Häkchen „Add-In beim Öffnen dieser Mappe automatisch starten“ → danach die Mappe **speichern**. Die Einstellung steht in der Datei selbst; wer sie öffnet und das Add-In zur Verfügung hat, bekommt den Seitenbereich automatisch. Voraussetzung ist die aktuelle `manifest.xml` (Aufgabenbereichs-ID `Office.AutoShowTaskpaneWithDocument`).
+
 ## Karte im eigenen Fenster (zweiter Monitor)
 
 Standardmäßig öffnet *Route berechnen* ein **eigenes Kartenfenster** (ca. 88 % des Bildschirms) mit Karte und Tourdaten. Es bleibt offen und wird bei jeder weiteren Berechnung aktualisiert; ziehe es auf den zweiten Monitor. Schließt du es, erscheint die Karte wieder im Seitenbereich. Im Seitenbereich lässt sich das über das Häkchen „Karte in eigenem Fenster“ ausschalten.
